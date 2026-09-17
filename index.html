@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f3ed">
+  <title>Sorteador de Grupos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="hero home-hero">
+      <h1>Sorteador de Grupos</h1>
+      <p>Organize sua turma de um jeito simples, justo e sem perder tempo.</p>
+    </header>
+
+    <section id="setupScreen" class="panel setup-panel">
+      <div class="section-heading setup-heading">
+        <div>
+          <span class="section-kicker">COMEÇAR</span>
+          <h2>Organize sua turma</h2>
+          <p>Informe os números abaixo ou importe grupos que já estão prontos.</p>
+        </div>
+      </div>
+
+      <div class="setup-layout">
+        <div class="setup-option setup-create-option">
+          <span class="option-label">CRIAR NOVOS GRUPOS</span>
+          <form id="setupForm" class="setup-form">
+            <label class="field">
+              <span>Quantidade de grupos</span>
+              <input id="groupCount" type="number" min="1" step="1" placeholder="Ex.: 5" required>
+            </label>
+
+            <label class="field">
+              <span>Quantidade de alunos</span>
+              <input id="studentCount" type="number" min="1" step="1" placeholder="Ex.: 24" required>
+            </label>
+
+            <button class="primary-btn" type="submit">Começar sorteio</button>
+          </form>
+        </div>
+
+        <div class="setup-option setup-import-option">
+          <span class="option-label">GRUPOS JÁ FORMADOS</span>
+          <div class="import-groups-box">
+            <div>
+              <strong>Importar uma turma</strong>
+              <p>Use HTML, Excel, CSV ou TXT.</p>
+            </div>
+            <button id="importGroupsButton" class="secondary-btn" type="button">Escolher arquivo</button>
+            <input id="groupsHtmlFile" class="visually-hidden" type="file" accept=".html,.htm,.xlsx,.xls,.csv,.txt,text/html,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          </div>
+          <details id="importFormatHelp" class="import-format-help">
+            <summary>Como preparar o arquivo</summary>
+            <div class="import-help-content">
+              <p>A primeira linha deve possuir as colunas <code>Grupo</code> e <code>Aluno</code>, com uma pessoa em cada linha.</p>
+              <div class="import-example" aria-label="Exemplo de arquivo para importação">
+                <span>Grupo</span><span>Aluno</span>
+                <span>1</span><span>Ana Souza</span>
+                <span>1</span><span>Bruno Lima</span>
+                <span>2</span><span>Carla Dias</span>
+              </div>
+              <p>No TXT, você também pode usar blocos com os títulos <code>GRUPO 1</code>, <code>GRUPO 2</code> e os nomes abaixo.</p>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <p id="setupError" class="message error-message" role="alert"></p>
+      <p id="importError" class="message error-message" role="alert"></p>
+    </section>
+
+    <section id="drawScreen" class="draw-screen hidden">
+      <div class="status-bar panel">
+        <div>
+          <span class="status-label">PROGRESSO</span>
+          <strong id="progressText">0 de 0 alunos</strong>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div class="status-actions">
+          <button id="importGroupsCurrentButton" class="ghost-btn" type="button">Importar grupos</button>
+          <button id="resetButton" class="ghost-btn" type="button">Reiniciar</button>
+        </div>
+      </div>
+
+      <section class="panel draw-panel">
+        <div class="section-heading">
+          <span class="step-badge">2</span>
+          <div>
+            <h2>Sortear aluno</h2>
+            <p>Digite o nome completo.</p>
+          </div>
+        </div>
+
+        <form id="studentForm" class="student-form">
+          <label class="field grow">
+            <span>Nome completo do aluno</span>
+            <input id="studentName" type="text" autocomplete="off" maxlength="100" placeholder="Digite o nome completo" required>
+          </label>
+          <button id="drawButton" class="primary-btn draw-btn" type="submit">Sortear grupo</button>
+        </form>
+
+        <p id="studentError" class="message error-message" role="alert"></p>
+
+        <div id="animationStage" class="animation-stage" aria-live="polite">
+          <span class="animation-label">PRÓXIMO SORTEIO</span>
+          <strong id="animatedName">Aguardando aluno...</strong>
+          <span id="animatedGroup" class="animated-group">—</span>
+        </div>
+      </section>
+
+      <section class="groups-section">
+        <div class="groups-heading">
+          <div>
+            <span class="status-label">GRUPOS</span>
+            <h2>Formação em tempo real</h2>
+          </div>
+          <span id="remainingText" class="remaining-pill"></span>
+        </div>
+        <div id="groupsGrid" class="groups-grid"></div>
+      </section>
+
+      <section id="completionPanel" class="completion-panel panel hidden">
+        <div class="completion-icon">✓</div>
+        <span class="eyebrow">SORTEIO CONCLUÍDO</span>
+        <h2>Todos os grupos estão formados!</h2>
+        <p>Agora sorteie a ordem, cronometre e registre as notas.</p>
+        <div class="completion-actions">
+          <button id="exportGroupsButton" class="secondary-btn" type="button">Exportar grupos (XLSX)</button>
+          <a class="primary-btn link-btn" href="apresentacoes.html">Iniciar apresentações</a>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="group-logic.js"></script>
+  <script src="vendor/xlsx-js-style.min.js"></script>
+  <script src="spreadsheet-style.js"></script>
+  <script src="ui-dialog.js"></script>
+  <script src="group-import-logic.js"></script>
+  <script src="group-export.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f3ed">
+  <title>Apresentações dos Grupos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="presentation-page">
+  <div class="background-orb orb-one"></div>
+  <div class="background-orb orb-two"></div>
+
+  <main class="presentation-shell">
+    <header class="presentation-header">
+      <div>
+        <span class="eyebrow">SESSÃO DE APRESENTAÇÕES</span>
+        <h1>Ordem, tempo e notas</h1>
+        <p id="sessionSubtitle">Configure o tempo para começar.</p>
+      </div>
+      <div class="presentation-actions">
+        <a href="index.html" class="ghost-btn link-btn">Voltar aos grupos</a>
+        <button id="resetPresentationButton" class="ghost-btn hidden" type="button">Reiniciar apresentações</button>
+      </div>
+    </header>
+
+    <section id="progressPanel" class="panel presentation-progress hidden" aria-label="Progresso das apresentações">
+      <div>
+        <span class="status-label">PROGRESSO</span>
+        <strong id="presentationProgressText">0 de 0 grupos</strong>
+      </div>
+      <div class="progress-track" aria-hidden="true">
+        <div id="presentationProgressFill" class="progress-fill"></div>
+      </div>
+    </section>
+
+    <section id="missingPanel" class="panel empty-state hidden">
+      <h2>Forme os grupos primeiro</h2>
+      <p>Não encontramos uma turma completa salva neste navegador.</p>
+      <a href="index.html" class="primary-btn link-btn">Ir para o sorteador</a>
+    </section>
+
+    <section id="configPanel" class="panel presentation-card hidden">
+      <div class="section-heading">
+        <span class="step-badge">1</span>
+        <div>
+          <h2>Tempo e avaliação</h2>
+          <p>Defina a duração de cada grupo e a nota máxima da atividade.</p>
+        </div>
+      </div>
+      <form id="durationForm" class="duration-form">
+        <label class="field">
+          <span>Minutos</span>
+          <input id="durationMinutes" type="number" min="0" step="1" value="10" required>
+        </label>
+        <span class="duration-separator" aria-hidden="true">:</span>
+        <label class="field">
+          <span>Segundos</span>
+          <input id="durationSeconds" type="number" min="0" max="59" step="1" value="0" required>
+        </label>
+        <label class="field maximum-grade-field">
+          <span>Nota máxima</span>
+          <input id="maximumGrade" type="text" inputmode="decimal" value="10" placeholder="Ex.: 10" required>
+        </label>
+        <button class="primary-btn" type="submit">Confirmar configuração</button>
+      </form>
+      <p id="durationError" class="message error-message" role="alert"></p>
+    </section>
+
+    <section id="readyPanel" class="panel presentation-card hidden">
+      <div id="drawPrompt" class="draw-prompt">
+        <span class="eyebrow">PRÓXIMA APRESENTAÇÃO</span>
+        <h2>Quem será o próximo grupo?</h2>
+        <p>O sorteio considera somente os grupos que ainda não apresentaram.</p>
+        <button id="drawGroupButton" class="primary-btn action-btn" type="button">Sortear grupo</button>
+      </div>
+      <div id="drawAnimation" class="draw-animation hidden" aria-live="polite" aria-atomic="true">
+        <span class="eyebrow">SORTEANDO...</span>
+        <div class="roulette-stage">
+          <div class="roulette-ring roulette-ring-outer" aria-hidden="true"></div>
+          <div class="roulette-ring roulette-ring-inner" aria-hidden="true"></div>
+          <div id="celebrationParticles" class="celebration-particles" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <strong id="rouletteGroupNumber" class="roulette-group-number">Grupo 1</strong>
+        </div>
+        <p id="rouletteStatus" class="roulette-status">Misturando os grupos...</p>
+      </div>
+      <div id="selectedGroup" class="selected-group hidden" aria-live="polite">
+        <span class="eyebrow">GRUPO SORTEADO</span>
+        <strong id="selectedGroupNumber" class="selected-group-number">Grupo 1</strong>
+        <ul id="selectedGroupMembers" class="presentation-members"></ul>
+        <button id="startTimerButton" class="primary-btn action-btn" type="button">Começar apresentação</button>
+      </div>
+    </section>
+
+    <section id="timerPanel" class="panel timer-card hidden" aria-live="polite">
+      <span class="eyebrow">APRESENTAÇÃO EM ANDAMENTO</span>
+      <h2 id="timerGroupName">Grupo 1</h2>
+      <div id="timerDisplay" class="timer-display" role="timer">00:00</div>
+      <div class="timer-track" aria-hidden="true"><div id="timerFill" class="timer-fill"></div></div>
+      <ul id="timerMembers" class="presentation-members compact"></ul>
+      <button id="finishTimerButton" class="secondary-btn" type="button">Encerrar antecipadamente</button>
+    </section>
+
+    <section id="gradingPanel" class="panel presentation-card hidden">
+      <div class="section-heading">
+        <span class="step-badge">✓</span>
+        <div>
+          <h2 id="gradingTitle">Avaliar Grupo 1</h2>
+          <p>Dê uma nota individual ou marque o aluno como ausente.</p>
+        </div>
+      </div>
+      <form id="gradingForm">
+        <div id="gradingList" class="grading-list"></div>
+        <p id="gradingError" class="message error-message" role="alert"></p>
+        <button class="primary-btn save-grades-btn" type="submit">Salvar notas e continuar</button>
+      </form>
+    </section>
+
+    <section id="completePanel" class="panel completion-panel hidden">
+      <div class="completion-icon">✓</div>
+      <span class="eyebrow">SESSÃO CONCLUÍDA</span>
+      <h2>Todos os grupos apresentaram!</h2>
+      <p id="completionSummary">As notas estão prontas para exportação.</p>
+      <button id="downloadWorkbookButton" class="primary-btn" type="button">Baixar planilha XLSX</button>
+    </section>
+  </main>
+
+  <script src="vendor/xlsx-js-style.min.js"></script>
+  <script src="spreadsheet-style.js"></script>
+  <script src="ui-dialog.js"></script>
+  <script src="presentation-alarm.js"></script>
+  <script src="presentation-logic.js"></script>
+  <script src="presentation-export.js"></script>
+  <script src="apresentacoes.js"></script>
+</body>
+</html>
