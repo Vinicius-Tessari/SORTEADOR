@@ -123,6 +123,9 @@ O projeto funciona inteiramente no navegador: não exige instalação, conta, se
 Primeiro, abra o CMD, PowerShell ou terminal na pasta do projeto. Depois execute:
 
 ```powershell
+Primeiro navegue até a página do sorteador pelo cmd, powershell ou terminal.
+
+Após isso execute o comando:
 python -m http.server 8000
 ```
 
@@ -183,7 +186,6 @@ O sistema aceita HTMLs exportados pelo próprio projeto ou páginas que contenha
 | `grupos-sorteados.xlsx` | Formação atual dos grupos |
 | `sessao-apresentacoes-AAAA-MM-DD.json` | Sessão completa para continuar depois |
 | `notas-apresentacoes.xlsx` | Notas, situações e observações finais |
-
 
 ## Estrutura principal
 
