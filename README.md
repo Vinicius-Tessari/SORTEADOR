@@ -49,19 +49,19 @@ Para XLSX, XLS e CSV, a primeira linha deve ter as colunas `Grupo` e `Aluno`, co
 
 | Grupo | Aluno |
 |---|---|
-| 1 | Ana Souza |
-| 1 | Bruno Lima |
-| 2 | Carla Dias |
+| 1 | João Santos |
+| 1 | Bruno Souza |
+| 2 | Carlos Silva |
 
 O TXT também aceita o formato em blocos:
 
 ```text
 GRUPO 1
-Ana Souza
-Bruno Lima
+João Santos
+Bruno Souza
 
 GRUPO 2
-Carla Dias
+Carlos Silva
 ```
 
 Arquivos HTML exportados pelo próprio sistema ou contendo grupos em listas também podem ser importados.
