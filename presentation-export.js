@@ -1,7 +1,7 @@
 (function (global) {
   "use strict";
 
-  const HEADERS = ["Aluno", "Grupo", "Nota", "Situação"];
+  const HEADERS = ["Aluno", "Grupo", "Nota", "Situação", "Observação individual", "Observação do grupo"];
   const Styler = global.SpreadsheetStyle || (typeof require !== "undefined" ? require("./spreadsheet-style.js") : null);
 
   function createWorkbook(xlsxApi, rows, maxGrade = 10) {
@@ -13,9 +13,17 @@
       title: "Notas das apresentações",
       subtitle: `Nota máxima configurada: ${formattedMaximum}`,
       headers: HEADERS,
-      dataRows: rows.map(row => [row.Aluno, row.Grupo, row.Nota, row["Situação"]]),
-      columnWidths: [Math.max(24, ...rows.map(row => String(row.Aluno).length + 3)), 12, 12, 16],
-      numericColumns: [2]
+      dataRows: rows.map(row => [
+        row.Aluno,
+        row.Grupo,
+        row.Nota,
+        row["Situação"],
+        row["Observação individual"] || "",
+        row["Observação do grupo"] || ""
+      ]),
+      columnWidths: [Math.max(24, ...rows.map(row => String(row.Aluno).length + 3)), 12, 12, 16, 38, 38],
+      numericColumns: [2],
+      wrapColumns: [4, 5]
     });
     rows.forEach((row, index) => {
       if (row["Situação"] === "Ausente") Styler.styleAbsentRow(xlsxApi, worksheet, index + 5, HEADERS.length);

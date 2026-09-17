@@ -20,6 +20,10 @@
       </div>
       <div class="presentation-actions">
         <a href="index.html" class="ghost-btn link-btn">Voltar aos grupos</a>
+        <a id="projectorModeLink" href="projetor.html" target="_blank" rel="noopener" class="ghost-btn link-btn">Modo projetor</a>
+        <button id="saveSessionButton" class="ghost-btn" type="button">Salvar sessão</button>
+        <button id="resumeSessionButton" class="ghost-btn" type="button">Retomar sessão</button>
+        <input id="sessionFileInput" class="visually-hidden" type="file" accept=".json,application/json">
         <button id="resetPresentationButton" class="ghost-btn hidden" type="button">Reiniciar apresentações</button>
       </div>
     </header>
@@ -101,7 +105,13 @@
       <div id="timerDisplay" class="timer-display" role="timer">00:00</div>
       <div class="timer-track" aria-hidden="true"><div id="timerFill" class="timer-fill"></div></div>
       <ul id="timerMembers" class="presentation-members compact"></ul>
-      <button id="finishTimerButton" class="secondary-btn" type="button">Encerrar antecipadamente</button>
+      <div class="timer-controls">
+        <button id="pauseTimerButton" class="primary-btn" type="button">Pausar</button>
+        <button id="addThirtySecondsButton" class="ghost-btn" type="button">+30 segundos</button>
+        <button id="addMinuteButton" class="ghost-btn" type="button">+1 minuto</button>
+        <button id="restartTimerButton" class="ghost-btn" type="button">Reiniciar tempo</button>
+        <button id="finishTimerButton" class="secondary-btn" type="button">Encerrar apresentação</button>
+      </div>
     </section>
 
     <section id="gradingPanel" class="panel presentation-card hidden">
@@ -113,6 +123,10 @@
         </div>
       </div>
       <form id="gradingForm">
+        <label class="field group-observation-field">
+          <span>Observação geral do grupo (opcional)</span>
+          <textarea id="groupObservation" rows="3" maxlength="1000" placeholder="Registre pontos importantes sobre a apresentação"></textarea>
+        </label>
         <div id="gradingList" class="grading-list"></div>
         <p id="gradingError" class="message error-message" role="alert"></p>
         <button class="primary-btn save-grades-btn" type="submit">Salvar notas e continuar</button>
@@ -133,6 +147,7 @@
   <script src="ui-dialog.js"></script>
   <script src="presentation-alarm.js"></script>
   <script src="presentation-logic.js"></script>
+  <script src="session-file.js"></script>
   <script src="presentation-export.js"></script>
   <script src="apresentacoes.js"></script>
 </body>

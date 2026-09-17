@@ -51,6 +51,14 @@
             <button id="importGroupsButton" class="secondary-btn" type="button">Escolher arquivo</button>
             <input id="groupsHtmlFile" class="visually-hidden" type="file" accept=".html,.htm,.xlsx,.xls,.csv,.txt,text/html,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
           </div>
+          <div class="portable-session-box">
+            <div>
+              <strong>Continuar uma sessão</strong>
+              <p>Abra um arquivo JSON salvo em outro computador.</p>
+            </div>
+            <button id="resumeSessionButton" class="ghost-btn" type="button">Retomar sessão</button>
+            <input id="sessionFileInput" class="visually-hidden" type="file" accept=".json,application/json">
+          </div>
           <details id="importFormatHelp" class="import-format-help">
             <summary>Como preparar o arquivo</summary>
             <div class="import-help-content">
@@ -81,6 +89,7 @@
           <div id="progressFill" class="progress-fill"></div>
         </div>
         <div class="status-actions">
+          <button id="editGroupsButton" class="ghost-btn" type="button">Editar grupos</button>
           <button id="importGroupsCurrentButton" class="ghost-btn" type="button">Importar grupos</button>
           <button id="resetButton" class="ghost-btn" type="button">Reiniciar</button>
         </div>
@@ -136,7 +145,31 @@
     </section>
   </main>
 
+  <div id="groupEditorModal" class="editor-overlay hidden" aria-hidden="true">
+    <section class="group-editor" role="dialog" aria-modal="true" aria-labelledby="groupEditorTitle">
+      <div class="group-editor-header">
+        <div>
+          <span class="eyebrow">AJUSTAR FORMAÇÃO</span>
+          <h2 id="groupEditorTitle">Editar grupos e alunos</h2>
+          <p>Corrija nomes, mova estudantes ou altere a quantidade de grupos.</p>
+        </div>
+        <button id="closeGroupEditorButton" class="icon-btn" type="button" aria-label="Fechar editor">×</button>
+      </div>
+      <div id="groupEditorList" class="group-editor-list"></div>
+      <p id="groupEditorError" class="message error-message" role="alert"></p>
+      <div class="group-editor-footer">
+        <button id="addGroupButton" class="ghost-btn" type="button">Adicionar grupo</button>
+        <div>
+          <button id="cancelGroupEditorButton" class="secondary-btn" type="button">Cancelar</button>
+          <button id="saveGroupEditorButton" class="primary-btn" type="button">Salvar alterações</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
   <script src="group-logic.js"></script>
+  <script src="presentation-logic.js"></script>
+  <script src="session-file.js"></script>
   <script src="vendor/xlsx-js-style.min.js"></script>
   <script src="spreadsheet-style.js"></script>
   <script src="ui-dialog.js"></script>

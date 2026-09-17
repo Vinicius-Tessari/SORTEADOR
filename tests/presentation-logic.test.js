@@ -46,7 +46,7 @@ const Logic = require("../presentation-logic.js");
 
 (function savesAndEnforcesTheConfiguredMaximumGrade() {
   let session = Logic.createSession([["Ana"]], 30, 7.5);
-  assert.strictEqual(session.version, 2);
+  assert.strictEqual(session.version, 3);
   assert.strictEqual(session.maxGrade, 7.5);
   session = Logic.finishCurrentGroup(Logic.startCurrentGroup(Logic.drawNextGroup(session, () => 0), 0));
   assert.throws(() => Logic.saveGrades(session, [
@@ -56,6 +56,75 @@ const Logic = require("../presentation-logic.js");
     { student: "Ana", grade: "7,25", absent: false }
   ]);
   assert.strictEqual(saved.grades[0].Ana.grade, 7.25);
+})();
+
+(function controlsRunningAndPausedTimersWithoutLosingTime() {
+  let session = Logic.createSession([["Ana"]], 120);
+  session = Logic.startCurrentGroup(Logic.drawNextGroup(session, () => 0), 1000);
+
+  const paused = Logic.pauseTimer(session, 31000);
+  assert.strictEqual(paused.timerPaused, true);
+  assert.strictEqual(paused.pausedRemainingSeconds, 90);
+  assert.strictEqual(paused.endAt, null);
+  assert.strictEqual(Logic.getSessionRemainingSeconds(paused, 90000), 90);
+
+  const extended = Logic.addTime(paused, 30);
+  assert.strictEqual(extended.pausedRemainingSeconds, 120);
+
+  const resumed = Logic.resumeTimer(extended, 50000);
+  assert.strictEqual(resumed.timerPaused, false);
+  assert.strictEqual(resumed.endAt, 170000);
+  assert.strictEqual(Logic.getSessionRemainingSeconds(resumed, 80000), 90);
+
+  const runningExtended = Logic.addTime(resumed, 60);
+  assert.strictEqual(runningExtended.endAt, 230000);
+
+  const restarted = Logic.restartTimer(runningExtended, 90000);
+  assert.strictEqual(restarted.endAt, 210000);
+  assert.strictEqual(restarted.timerPaused, false);
+  assert.throws(() => Logic.addTime(restarted, 0), /maior que zero/i);
+})();
+
+(function migratesVersionTwoSessionsAndPreservesProgress() {
+  const legacy = {
+    version: 2,
+    groups: [["Ana"]],
+    durationSeconds: 60,
+    maxGrade: 10,
+    phase: "cronometro",
+    drawnGroupIndexes: [0],
+    completedGroupIndexes: [],
+    currentGroupIndex: 0,
+    endAt: 51000,
+    grades: {}
+  };
+  const migrated = Logic.migrateSession(legacy, 21000);
+  assert.strictEqual(migrated.version, 3);
+  assert.strictEqual(migrated.timerPaused, false);
+  assert.strictEqual(migrated.pausedRemainingSeconds, null);
+  assert.deepStrictEqual(migrated.groupObservations, {});
+  assert.strictEqual(Logic.getSessionRemainingSeconds(migrated, 21000), 30);
+  assert.strictEqual(Logic.isValidSession(migrated, [["Ana"]]), true);
+})();
+
+(function savesGroupAndIndividualObservationsInExportRows() {
+  let session = Logic.createSession([["Ana", "Bia"]], 30);
+  session = Logic.finishCurrentGroup(Logic.startCurrentGroup(Logic.drawNextGroup(session, () => 0), 0));
+  session = Logic.saveGrades(session, [
+    { student: "Ana", grade: "9", absent: false, observation: "Ótima explicação" },
+    { student: "Bia", grade: "", absent: true, observation: "Não compareceu" }
+  ], "Grupo bem organizado");
+
+  assert.strictEqual(session.grades[0].Ana.observation, "Ótima explicação");
+  assert.strictEqual(session.groupObservations[0], "Grupo bem organizado");
+  assert.deepStrictEqual(Logic.buildExportRows(session)[0], {
+    Aluno: "Ana",
+    Grupo: 1,
+    Nota: 9,
+    "Situação": "Presente",
+    "Observação individual": "Ótima explicação",
+    "Observação do grupo": "Grupo bem organizado"
+  });
 })();
 
 (function drawNeverRepeatsCompletedOrAlreadyDrawnGroups() {
@@ -106,8 +175,14 @@ const Logic = require("../presentation-logic.js");
   assert.strictEqual(saved.currentGroupIndex, null);
 
   const rows = Logic.buildExportRows(saved);
-  assert.deepStrictEqual(rows[0], { Aluno: "Ana", Grupo: 1, Nota: 0, "Situação": "Ausente" });
-  assert.deepStrictEqual(rows[1], { Aluno: "Zeca", Grupo: 1, Nota: 8.5, "Situação": "Presente" });
+  assert.deepStrictEqual(rows[0], {
+    Aluno: "Ana", Grupo: 1, Nota: 0, "Situação": "Ausente",
+    "Observação individual": "", "Observação do grupo": ""
+  });
+  assert.deepStrictEqual(rows[1], {
+    Aluno: "Zeca", Grupo: 1, Nota: 8.5, "Situação": "Presente",
+    "Observação individual": "", "Observação do grupo": ""
+  });
 })();
 
 (function completesOnlyAfterEveryGroupIsGraded() {
@@ -144,4 +219,4 @@ const Logic = require("../presentation-logic.js");
   });
 })();
 
-console.log("✓ 8 conjuntos de testes de apresentação passaram.");
+console.log("✓ 11 conjuntos de testes de apresentação passaram.");

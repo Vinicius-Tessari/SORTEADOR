@@ -22,7 +22,7 @@
   }
 
   function createStyledSheet(xlsxApi, options) {
-    const { title, subtitle, headers, dataRows, columnWidths, numericColumns = [] } = options;
+    const { title, subtitle, headers, dataRows, columnWidths, numericColumns = [], wrapColumns = [] } = options;
     const values = [
       [title],
       [subtitle],
@@ -71,8 +71,9 @@
           border: border()
         };
         if (numericColumns.includes(columnIndex)) cell.z = "0.00";
+        if (wrapColumns.includes(columnIndex)) cell.s.alignment.wrapText = true;
       });
-      worksheet["!rows"][rowIndex + 4] = { hpt: 21 };
+      worksheet["!rows"][rowIndex + 4] = { hpt: wrapColumns.length ? 34 : 21 };
     });
 
     return worksheet;

@@ -21,6 +21,9 @@ const progressText = document.getElementById("presentationProgressText");
 const progressFill = document.getElementById("presentationProgressFill");
 const sessionSubtitle = document.getElementById("sessionSubtitle");
 const resetButton = document.getElementById("resetPresentationButton");
+const saveSessionButton = document.getElementById("saveSessionButton");
+const resumeSessionButton = document.getElementById("resumeSessionButton");
+const sessionFileInput = document.getElementById("sessionFileInput");
 const drawPrompt = document.getElementById("drawPrompt");
 const drawAnimation = document.getElementById("drawAnimation");
 const rouletteGroupNumber = document.getElementById("rouletteGroupNumber");
@@ -35,10 +38,15 @@ const timerGroupName = document.getElementById("timerGroupName");
 const timerDisplay = document.getElementById("timerDisplay");
 const timerFill = document.getElementById("timerFill");
 const timerMembers = document.getElementById("timerMembers");
+const pauseTimerButton = document.getElementById("pauseTimerButton");
+const addThirtySecondsButton = document.getElementById("addThirtySecondsButton");
+const addMinuteButton = document.getElementById("addMinuteButton");
+const restartTimerButton = document.getElementById("restartTimerButton");
 const finishTimerButton = document.getElementById("finishTimerButton");
 const gradingTitle = document.getElementById("gradingTitle");
 const gradingForm = document.getElementById("gradingForm");
 const gradingList = document.getElementById("gradingList");
+const groupObservation = document.getElementById("groupObservation");
 const gradingError = document.getElementById("gradingError");
 const completionSummary = document.getElementById("completionSummary");
 const downloadButton = document.getElementById("downloadWorkbookButton");
@@ -159,7 +167,16 @@ async function animateGroupDraw(previousSession, winnerIndex) {
   sessionSubtitle.textContent = "Sorteio em andamento...";
 
   for (let index = 0; index < sequence.length; index += 1) {
-    rouletteGroupNumber.textContent = `Grupo ${sequence[index] + 1}`;
+    const displayedGroupIndex = sequence[index];
+    const isWinner = index === sequence.length - 1;
+    rouletteGroupNumber.textContent = `Grupo ${displayedGroupIndex + 1}`;
+    appState.projectorDraw = {
+      active: true,
+      groupIndex: displayedGroupIndex,
+      winner: isWinner,
+      updatedAt: Date.now()
+    };
+    saveAppState();
     if (index === sequence.length - 5) rouletteStatus.textContent = "Quase lá...";
     if (index < sequence.length - 1) {
       const progress = index / Math.max(1, sequence.length - 2);
@@ -174,14 +191,16 @@ async function animateGroupDraw(previousSession, winnerIndex) {
   celebrationParticles.classList.add("burst");
   rouletteStatus.textContent = "É o próximo a apresentar!";
   await wait(reducedMotion ? 180 : 900);
+  delete appState.projectorDraw;
+  saveAppState();
 }
 
 function updateTimer(session) {
-  const remaining = PresentationLogic.getRemainingSeconds(session.endAt, Date.now());
+  const remaining = PresentationLogic.getSessionRemainingSeconds(session, Date.now());
   timerDisplay.textContent = PresentationLogic.formatClock(remaining);
-  timerFill.style.width = `${Math.round((remaining / session.durationSeconds) * 100)}%`;
+  timerFill.style.width = `${Math.min(100, Math.round((remaining / session.durationSeconds) * 100))}%`;
   timerDisplay.classList.toggle("timer-warning", remaining <= 30);
-  if (remaining === 0) {
+  if (remaining === 0 && !session.timerPaused) {
     stopTimerUpdates();
     timerAlarm.play();
     appState.presentation = PresentationLogic.finishCurrentGroup(session);
@@ -194,9 +213,12 @@ function renderTimer(session) {
   showPanel("timer");
   timerGroupName.textContent = `Grupo ${session.currentGroupIndex + 1}`;
   fillMemberList(timerMembers, getCurrentGroup(session));
-  sessionSubtitle.textContent = `Grupo ${session.currentGroupIndex + 1} está apresentando.`;
+  sessionSubtitle.textContent = session.timerPaused
+    ? `Apresentação do Grupo ${session.currentGroupIndex + 1} pausada.`
+    : `Grupo ${session.currentGroupIndex + 1} está apresentando.`;
+  pauseTimerButton.textContent = session.timerPaused ? "Continuar" : "Pausar";
   updateTimer(session);
-  if (appState.presentation.phase === "cronometro" && timerInterval === null) {
+  if (appState.presentation.phase === "cronometro" && !session.timerPaused && timerInterval === null) {
     timerInterval = setInterval(() => updateTimer(appState.presentation), 250);
   }
 }
@@ -236,13 +258,24 @@ function createGradeRow(student, index, maxGrade) {
   absentText.textContent = "Ausente";
   absentLabel.append(absentInput, absentText);
 
+  const observationLabel = document.createElement("label");
+  observationLabel.className = "field student-observation-field";
+  const observationText = document.createElement("span");
+  observationText.textContent = "Observação (opcional)";
+  const observationInput = document.createElement("textarea");
+  observationInput.className = "student-observation";
+  observationInput.rows = 2;
+  observationInput.maxLength = 500;
+  observationInput.placeholder = "Comentário sobre o aluno";
+  observationLabel.append(observationText, observationInput);
+
   absentInput.addEventListener("change", () => {
     gradeInput.disabled = absentInput.checked;
     gradeInput.value = absentInput.checked ? "0" : "";
     row.classList.toggle("is-absent", absentInput.checked);
   });
 
-  row.append(identity, gradeLabel, absentLabel);
+  row.append(identity, gradeLabel, absentLabel, observationLabel);
   return row;
 }
 
@@ -251,6 +284,7 @@ function renderGrading(session) {
   gradingTitle.textContent = `Avaliar Grupo ${session.currentGroupIndex + 1}`;
   sessionSubtitle.textContent = "Registre a nota individual de cada aluno.";
   gradingError.textContent = "";
+  groupObservation.value = session.groupObservations?.[session.currentGroupIndex] || "";
   gradingList.replaceChildren();
   getCurrentGroup(session).forEach((student, index) => gradingList.appendChild(createGradeRow(student, index, session.maxGrade)));
   const firstInput = gradingList.querySelector(".grade-input");
@@ -326,6 +360,10 @@ drawGroupButton.addEventListener("click", async () => {
     selectedGroup.classList.add("winner-reveal");
     setTimeout(() => selectedGroup.classList.remove("winner-reveal"), 1200);
   } finally {
+    if (appState.projectorDraw) {
+      delete appState.projectorDraw;
+      saveAppState();
+    }
     isDrawingGroup = false;
     drawGroupButton.disabled = false;
     resetButton.disabled = false;
@@ -345,20 +383,105 @@ finishTimerButton.addEventListener("click", () => {
   render();
 });
 
+pauseTimerButton.addEventListener("click", () => {
+  appState.presentation = appState.presentation.timerPaused
+    ? PresentationLogic.resumeTimer(appState.presentation, Date.now())
+    : PresentationLogic.pauseTimer(appState.presentation, Date.now());
+  saveAppState();
+  render();
+});
+
+addThirtySecondsButton.addEventListener("click", () => {
+  appState.presentation = PresentationLogic.addTime(appState.presentation, 30);
+  saveAppState();
+  render();
+});
+
+addMinuteButton.addEventListener("click", () => {
+  appState.presentation = PresentationLogic.addTime(appState.presentation, 60);
+  saveAppState();
+  render();
+});
+
+restartTimerButton.addEventListener("click", async () => {
+  const confirmed = await AppDialog.confirm({
+    title: "Reiniciar o tempo?",
+    message: "O cronômetro voltará para a duração configurada deste grupo.",
+    confirmText: "Reiniciar",
+    variant: "danger"
+  });
+  if (!confirmed) return;
+  appState.presentation = PresentationLogic.restartTimer(appState.presentation, Date.now());
+  saveAppState();
+  render();
+});
+
 gradingForm.addEventListener("submit", event => {
   event.preventDefault();
   gradingError.textContent = "";
   const entries = [...gradingList.querySelectorAll(".grade-row")].map(row => ({
     student: row.dataset.student,
     grade: row.querySelector(".grade-input").value,
-    absent: row.querySelector(".absent-input").checked
+    absent: row.querySelector(".absent-input").checked,
+    observation: row.querySelector(".student-observation").value
   }));
   try {
-    appState.presentation = PresentationLogic.saveGrades(appState.presentation, entries);
+    appState.presentation = PresentationLogic.saveGrades(appState.presentation, entries, groupObservation.value);
     saveAppState();
     render();
   } catch (error) {
     gradingError.textContent = error.message;
+  }
+});
+
+function downloadSessionFile() {
+  const contents = SessionFile.serialize(appState, Date.now());
+  const blob = new Blob([contents], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `sessao-apresentacoes-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+saveSessionButton.addEventListener("click", async () => {
+  if (!hasCompleteGroups(appState)) {
+    await AppDialog.notify({ title: "Nenhuma sessão para salvar", message: "Forme ou importe os grupos primeiro." });
+    return;
+  }
+  try {
+    downloadSessionFile();
+  } catch (error) {
+    await AppDialog.notify({ title: "Não foi possível salvar", message: error.message, variant: "danger" });
+  }
+});
+
+resumeSessionButton.addEventListener("click", () => {
+  sessionFileInput.value = "";
+  sessionFileInput.click();
+});
+
+sessionFileInput.addEventListener("change", async () => {
+  const file = sessionFileInput.files && sessionFileInput.files[0];
+  if (!file) return;
+  try {
+    const restored = SessionFile.parse(await file.text());
+    const confirmed = !hasCompleteGroups(appState) || await AppDialog.confirm({
+      title: "Retomar a sessão salva?",
+      message: "A sessão aberta atualmente será substituída pelo conteúdo do arquivo.",
+      confirmText: "Retomar",
+      variant: "danger"
+    });
+    if (!confirmed) return;
+    appState = restored;
+    saveAppState();
+    restoreNotice = "Sessão restaurada com sucesso.";
+    render();
+  } catch (error) {
+    await AppDialog.notify({ title: "Não foi possível retomar", message: error.message, variant: "danger" });
   }
 });
 
@@ -385,10 +508,16 @@ resetButton.addEventListener("click", async () => {
   render();
 });
 
-if (hasCompleteGroups(appState) && appState.presentation && !PresentationLogic.isValidSession(appState.presentation, appState.groups)) {
-  delete appState.presentation;
-  saveAppState();
-  restoreNotice = "A sessão anterior estava inválida e foi reiniciada. Os grupos foram preservados.";
+if (hasCompleteGroups(appState) && appState.presentation) {
+  try {
+    appState.presentation = PresentationLogic.migrateSession(appState.presentation, Date.now());
+    if (!PresentationLogic.isValidSession(appState.presentation, appState.groups)) throw new Error("Sessão inválida");
+    saveAppState();
+  } catch (_) {
+    delete appState.presentation;
+    saveAppState();
+    restoreNotice = "A sessão anterior estava inválida e foi reiniciada. Os grupos foram preservados.";
+  }
 }
 
 render();

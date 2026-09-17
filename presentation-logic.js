@@ -66,6 +66,7 @@
       groups: session.groups.map(group => [...group]),
       drawnGroupIndexes: [...session.drawnGroupIndexes],
       completedGroupIndexes: [...session.completedGroupIndexes],
+      groupObservations: { ...(session.groupObservations || {}) },
       grades: Object.fromEntries(
         Object.entries(session.grades).map(([groupIndex, groupGrades]) => [
           groupIndex,
@@ -83,7 +84,7 @@
     }
     const maximumGrade = parseMaxGrade(maxGrade);
     return {
-      version: 2,
+      version: 3,
       groups: normalizedGroups,
       durationSeconds: duration,
       maxGrade: maximumGrade,
@@ -92,7 +93,10 @@
       completedGroupIndexes: [],
       currentGroupIndex: null,
       endAt: null,
-      grades: {}
+      timerPaused: false,
+      pausedRemainingSeconds: null,
+      grades: {},
+      groupObservations: {}
     };
   }
 
@@ -145,6 +149,8 @@
     const next = cloneSession(session);
     next.phase = "cronometro";
     next.endAt = Number(nowMs) + next.durationSeconds * 1000;
+    next.timerPaused = false;
+    next.pausedRemainingSeconds = null;
     return next;
   }
 
@@ -155,6 +161,8 @@
     const next = cloneSession(session);
     next.phase = "avaliacao";
     next.endAt = null;
+    next.timerPaused = false;
+    next.pausedRemainingSeconds = null;
     return next;
   }
 
@@ -162,7 +170,55 @@
     return Math.max(0, Math.ceil((Number(endAt) - Number(nowMs)) / 1000));
   }
 
-  function saveGrades(session, entries) {
+  function getSessionRemainingSeconds(session, nowMs = Date.now()) {
+    if (session.timerPaused) return Math.max(0, Number(session.pausedRemainingSeconds) || 0);
+    return getRemainingSeconds(session.endAt, nowMs);
+  }
+
+  function pauseTimer(session, nowMs = Date.now()) {
+    if (session.phase !== "cronometro" || session.timerPaused) {
+      throw new Error("Não há cronômetro em andamento para pausar.");
+    }
+    const next = cloneSession(session);
+    next.pausedRemainingSeconds = getRemainingSeconds(session.endAt, nowMs);
+    next.timerPaused = true;
+    next.endAt = null;
+    return next;
+  }
+
+  function resumeTimer(session, nowMs = Date.now()) {
+    if (session.phase !== "cronometro" || !session.timerPaused) {
+      throw new Error("Não há cronômetro pausado para continuar.");
+    }
+    const next = cloneSession(session);
+    next.endAt = Number(nowMs) + next.pausedRemainingSeconds * 1000;
+    next.timerPaused = false;
+    next.pausedRemainingSeconds = null;
+    return next;
+  }
+
+  function addTime(session, seconds) {
+    const amount = Number(seconds);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      throw new Error("O tempo adicional deve ser um número inteiro maior que zero.");
+    }
+    if (session.phase !== "cronometro") throw new Error("Não há apresentação em andamento.");
+    const next = cloneSession(session);
+    if (next.timerPaused) next.pausedRemainingSeconds += amount;
+    else next.endAt += amount * 1000;
+    return next;
+  }
+
+  function restartTimer(session, nowMs = Date.now()) {
+    if (session.phase !== "cronometro") throw new Error("Não há apresentação em andamento.");
+    const next = cloneSession(session);
+    next.endAt = Number(nowMs) + next.durationSeconds * 1000;
+    next.timerPaused = false;
+    next.pausedRemainingSeconds = null;
+    return next;
+  }
+
+  function saveGrades(session, entries, groupObservation = "") {
     if (session.phase !== "avaliacao" || session.currentGroupIndex === null) {
       throw new Error("Não há grupo aguardando avaliação.");
     }
@@ -179,18 +235,24 @@
     const groupGrades = {};
     students.forEach(student => {
       const entry = byStudent.get(student);
-      groupGrades[student] = entry.absent
+      const evaluation = entry.absent
         ? { grade: 0, status: "Ausente" }
         : { grade: parseGrade(entry.grade, session.maxGrade), status: "Presente" };
+      const observation = String(entry.observation || "").trim();
+      if (observation) evaluation.observation = observation;
+      groupGrades[student] = evaluation;
     });
 
     const next = cloneSession(session);
     next.grades[groupIndex] = groupGrades;
+    next.groupObservations[groupIndex] = String(groupObservation || "").trim();
     if (!next.completedGroupIndexes.includes(groupIndex)) {
       next.completedGroupIndexes.push(groupIndex);
     }
     next.currentGroupIndex = null;
     next.endAt = null;
+    next.timerPaused = false;
+    next.pausedRemainingSeconds = null;
     next.phase = next.completedGroupIndexes.length === next.groups.length ? "concluido" : "pronto";
     return next;
   }
@@ -208,7 +270,9 @@
             Aluno: student,
             Grupo: groupIndex + 1,
             Nota: evaluation.grade,
-            "Situação": evaluation.status
+            "Situação": evaluation.status,
+            "Observação individual": evaluation.observation || "",
+            "Observação do grupo": session.groupObservations?.[groupIndex] || ""
           });
         });
     });
@@ -217,15 +281,41 @@
 
   function isValidSession(session, groups) {
     const phases = new Set(["pronto", "cronometro", "avaliacao", "concluido"]);
-    if (!session || typeof session !== "object" || session.version !== 2) return false;
+    if (!session || typeof session !== "object" || session.version !== 3) return false;
     if (!phases.has(session.phase) || !Number.isInteger(session.durationSeconds) || session.durationSeconds <= 0) return false;
     if (!Number.isFinite(session.maxGrade) || session.maxGrade <= 0 || session.maxGrade > 100) return false;
     if (!Array.isArray(session.groups) || JSON.stringify(session.groups) !== JSON.stringify(groups)) return false;
     if (!Array.isArray(session.drawnGroupIndexes) || !Array.isArray(session.completedGroupIndexes)) return false;
     if (!session.grades || typeof session.grades !== "object") return false;
+    if (!session.groupObservations || typeof session.groupObservations !== "object") return false;
+    if (typeof session.timerPaused !== "boolean") return false;
+    if (session.timerPaused && (!Number.isInteger(session.pausedRemainingSeconds) || session.pausedRemainingSeconds < 0)) return false;
     if (session.currentGroupIndex !== null && (!Number.isInteger(session.currentGroupIndex) || !session.groups[session.currentGroupIndex])) return false;
-    if (session.phase === "cronometro" && !Number.isFinite(session.endAt)) return false;
+    if (session.phase === "cronometro" && !session.timerPaused && !Number.isFinite(session.endAt)) return false;
     return true;
+  }
+
+  function migrateSession(session, nowMs = Date.now()) {
+    if (!session || typeof session !== "object") return session;
+    if (session.version === 3) return cloneSession(session);
+    if (session.version !== 2) return session;
+    return {
+      ...session,
+      version: 3,
+      groups: session.groups.map(group => [...group]),
+      drawnGroupIndexes: [...session.drawnGroupIndexes],
+      completedGroupIndexes: [...session.completedGroupIndexes],
+      grades: Object.fromEntries(
+        Object.entries(session.grades || {}).map(([groupIndex, groupGrades]) => [
+          groupIndex,
+          Object.fromEntries(Object.entries(groupGrades).map(([student, grade]) => [student, { ...grade }]))
+        ])
+      ),
+      groupObservations: {},
+      timerPaused: false,
+      pausedRemainingSeconds: null,
+      endAt: session.phase === "cronometro" ? Number(session.endAt) : null
+    };
   }
 
   function formatClock(totalSeconds) {
@@ -255,9 +345,15 @@
     startCurrentGroup,
     finishCurrentGroup,
     getRemainingSeconds,
+    getSessionRemainingSeconds,
+    pauseTimer,
+    resumeTimer,
+    addTime,
+    restartTimer,
     saveGrades,
     buildExportRows,
     isValidSession,
+    migrateSession,
     formatClock,
     getSummary
   };

@@ -18,6 +18,39 @@ const appScripts = ["script.js", "apresentacoes.js"]
   }
 })();
 
+(function homePageCanEditGroupsAndResumeAPortableSession() {
+  for (const id of ["editGroupsButton", "groupEditorModal", "resumeSessionButton", "sessionFileInput"]) {
+    assert.match(indexHtml, new RegExp(`id=["']${id}["']`), `controle ausente: ${id}`);
+  }
+  assert.match(indexHtml, /session-file\.js/);
+})();
+
+(function presentationPageHasPortableSessionAndTimerControls() {
+  for (const id of [
+    "saveSessionButton", "resumeSessionButton", "sessionFileInput", "projectorModeLink",
+    "pauseTimerButton", "addThirtySecondsButton", "addMinuteButton", "restartTimerButton"
+  ]) {
+    assert.match(presentationHtml, new RegExp(`id=["']${id}["']`), `controle ausente: ${id}`);
+  }
+  assert.match(presentationHtml, /session-file\.js/);
+})();
+
+(function gradingPageAcceptsGroupAndStudentObservations() {
+  assert.match(presentationHtml, /id=["']groupObservation["']/);
+  assert.match(fs.readFileSync(path.join(root, "apresentacoes.js"), "utf8"), /student-observation/);
+})();
+
+(function projectorPageShowsOnlyPublicPresentationInformation() {
+  const projectorHtml = fs.readFileSync(path.join(root, "projetor.html"), "utf8");
+  for (const id of ["projectorStatus", "projectorGroup", "projectorTimer", "projectorMembers"]) {
+    assert.match(projectorHtml, new RegExp(`id=["']${id}["']`), `elemento do projetor ausente: ${id}`);
+  }
+  assert.match(projectorHtml, /presentation-logic\.js/);
+  assert.match(projectorHtml, /projector-logic\.js/);
+  assert.match(projectorHtml, /projetor\.js/);
+  assert.doesNotMatch(projectorHtml, /grade-input|Nota \(0/i);
+})();
+
 (function presentationPageHasAnimatedDrawStage() {
   for (const id of ["drawAnimation", "rouletteGroupNumber", "rouletteStatus", "celebrationParticles"]) {
     assert.match(presentationHtml, new RegExp(`id=["']${id}["']`), `elemento da animação ausente: ${id}`);

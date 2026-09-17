@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#173f36">
+  <title>Apresentação — Modo projetor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="projector-page">
+  <main class="projector-shell" aria-live="polite">
+    <header class="projector-header">
+      <span class="projector-brand">APRESENTAÇÕES</span>
+      <strong id="projectorStatus">Aguardando configuração</strong>
+    </header>
+    <section class="projector-content">
+      <p class="projector-kicker">GRUPO ATUAL</p>
+      <h1 id="projectorGroup">Aguardando...</h1>
+      <div id="projectorTimer" class="projector-timer" role="timer">--:--</div>
+      <ul id="projectorMembers" class="projector-members"></ul>
+    </section>
+    <footer>Esta tela é atualizada automaticamente pela tela do professor.</footer>
+  </main>
+  <script src="presentation-logic.js"></script>
+  <script src="projector-logic.js"></script>
+  <script src="projetor.js"></script>
+</body>
+</html>

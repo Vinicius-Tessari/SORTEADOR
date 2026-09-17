@@ -49,4 +49,45 @@ function fixedRandom(values) {
   assert.strictEqual(Logic.chooseAvailableGroup(groups, capacities, () => 0.999), 2);
 })();
 
-console.log("✓ 7 testes de lógica passaram.");
+(function editsGroupsWithoutMutatingTheOriginal() {
+  const original = [["Ana", "Bia"], ["Caio"]];
+  const renamed = Logic.updateGroups(original, { type: "rename", groupIndex: 0, studentIndex: 1, name: "Beatriz" });
+  assert.deepStrictEqual(renamed, [["Ana", "Beatriz"], ["Caio"]]);
+  assert.deepStrictEqual(original, [["Ana", "Bia"], ["Caio"]]);
+
+  const added = Logic.updateGroups(renamed, { type: "add", groupIndex: 1, name: "Davi" });
+  assert.deepStrictEqual(added[1], ["Caio", "Davi"]);
+
+  const moved = Logic.updateGroups(added, { type: "move", groupIndex: 0, studentIndex: 0, targetGroupIndex: 1 });
+  assert.deepStrictEqual(moved, [["Beatriz"], ["Caio", "Davi", "Ana"]]);
+
+  const removed = Logic.updateGroups(moved, { type: "remove", groupIndex: 1, studentIndex: 1 });
+  assert.deepStrictEqual(removed, [["Beatriz"], ["Caio", "Ana"]]);
+})();
+
+(function addsAndRemovesGroupsAndValidatesTheFinalFormation() {
+  const withEmptyGroup = Logic.updateGroups([["Ana"], ["Bia"]], { type: "addGroup" });
+  assert.deepStrictEqual(withEmptyGroup, [["Ana"], ["Bia"], []]);
+  assert.throws(() => Logic.validateEditedGroups(withEmptyGroup), /grupo 3.*vazio/i);
+
+  const filled = Logic.updateGroups(withEmptyGroup, { type: "add", groupIndex: 2, name: "Caio" });
+  assert.deepStrictEqual(Logic.validateEditedGroups(filled), [["Ana"], ["Bia"], ["Caio"]]);
+
+  const removed = Logic.updateGroups([["Ana"], ["Bia"], []], { type: "removeGroup", groupIndex: 2 });
+  assert.deepStrictEqual(removed, [["Ana"], ["Bia"]]);
+  assert.throws(() => Logic.updateGroups([["Ana"]], { type: "removeGroup", groupIndex: 0 }), /único grupo/i);
+})();
+
+(function rejectsInvalidOrDuplicateNamesWhileEditing() {
+  assert.throws(
+    () => Logic.updateGroups([["Ana"], ["Bia"]], { type: "rename", groupIndex: 1, studentIndex: 0, name: " ana " }),
+    /já está nos grupos/i
+  );
+  assert.throws(
+    () => Logic.updateGroups([["Ana"]], { type: "add", groupIndex: 0, name: "  " }),
+    /nome completo/i
+  );
+  assert.throws(() => Logic.validateEditedGroups([["Ana"], [" ana "]]), /duplicado/i);
+})();
+
+console.log("✓ 10 testes de lógica passaram.");

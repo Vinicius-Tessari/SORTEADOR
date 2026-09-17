@@ -25,9 +25,20 @@ const importGroupsButton = document.getElementById("importGroupsButton");
 const importGroupsCurrentButton = document.getElementById("importGroupsCurrentButton");
 const groupsHtmlFile = document.getElementById("groupsHtmlFile");
 const importError = document.getElementById("importError");
+const resumeSessionButton = document.getElementById("resumeSessionButton");
+const sessionFileInput = document.getElementById("sessionFileInput");
+const editGroupsButton = document.getElementById("editGroupsButton");
+const groupEditorModal = document.getElementById("groupEditorModal");
+const groupEditorList = document.getElementById("groupEditorList");
+const groupEditorError = document.getElementById("groupEditorError");
+const closeGroupEditorButton = document.getElementById("closeGroupEditorButton");
+const cancelGroupEditorButton = document.getElementById("cancelGroupEditorButton");
+const saveGroupEditorButton = document.getElementById("saveGroupEditorButton");
+const addGroupButton = document.getElementById("addGroupButton");
 
 let state = null;
 let isDrawing = false;
+let editingGroups = null;
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -264,6 +275,168 @@ function openGroupImporter() {
   groupsHtmlFile.value = "";
   groupsHtmlFile.click();
 }
+
+function closeGroupEditor() {
+  groupEditorModal.classList.add("hidden");
+  groupEditorModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("dialog-open");
+  editingGroups = null;
+}
+
+function runGroupEdit(operation) {
+  try {
+    editingGroups = GroupLogic.updateGroups(editingGroups, operation);
+    groupEditorError.textContent = "";
+    renderGroupEditor();
+  } catch (error) {
+    groupEditorError.textContent = error.message;
+  }
+}
+
+function renderGroupEditor() {
+  groupEditorList.replaceChildren();
+  editingGroups.forEach((members, groupIndex) => {
+    const card = document.createElement("section");
+    card.className = "editor-group-card";
+
+    const heading = document.createElement("div");
+    heading.className = "editor-group-heading";
+    const title = document.createElement("h3");
+    title.textContent = `Grupo ${groupIndex + 1}`;
+    const removeGroup = document.createElement("button");
+    removeGroup.type = "button";
+    removeGroup.className = "text-btn danger-text";
+    removeGroup.textContent = "Excluir grupo";
+    removeGroup.disabled = members.length > 0 || editingGroups.length === 1;
+    removeGroup.addEventListener("click", () => runGroupEdit({ type: "removeGroup", groupIndex }));
+    heading.append(title, removeGroup);
+
+    const list = document.createElement("div");
+    list.className = "editor-student-list";
+    if (members.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "editor-empty";
+      empty.textContent = "Grupo vazio — adicione ou mova um aluno para cá.";
+      list.appendChild(empty);
+    }
+
+    members.forEach((student, studentIndex) => {
+      const row = document.createElement("div");
+      row.className = "editor-student-row";
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.value = student;
+      nameInput.maxLength = 100;
+      nameInput.setAttribute("aria-label", `Nome de ${student}`);
+      nameInput.addEventListener("change", () => runGroupEdit({
+        type: "rename", groupIndex, studentIndex, name: nameInput.value
+      }));
+
+      const destination = document.createElement("select");
+      destination.setAttribute("aria-label", `Mover ${student} para outro grupo`);
+      editingGroups.forEach((_, targetGroupIndex) => {
+        const option = document.createElement("option");
+        option.value = String(targetGroupIndex);
+        option.textContent = `Grupo ${targetGroupIndex + 1}`;
+        option.selected = targetGroupIndex === groupIndex;
+        destination.appendChild(option);
+      });
+      destination.addEventListener("change", () => runGroupEdit({
+        type: "move", groupIndex, studentIndex, targetGroupIndex: Number(destination.value)
+      }));
+
+      const removeStudent = document.createElement("button");
+      removeStudent.type = "button";
+      removeStudent.className = "icon-btn small danger-text";
+      removeStudent.textContent = "×";
+      removeStudent.setAttribute("aria-label", `Remover ${student}`);
+      removeStudent.addEventListener("click", () => runGroupEdit({ type: "remove", groupIndex, studentIndex }));
+      row.append(nameInput, destination, removeStudent);
+      list.appendChild(row);
+    });
+
+    const addRow = document.createElement("div");
+    addRow.className = "editor-add-row";
+    const addInput = document.createElement("input");
+    addInput.type = "text";
+    addInput.maxLength = 100;
+    addInput.placeholder = "Nome do aluno";
+    const addStudent = document.createElement("button");
+    addStudent.type = "button";
+    addStudent.className = "ghost-btn";
+    addStudent.textContent = "Adicionar";
+    const add = () => runGroupEdit({ type: "add", groupIndex, name: addInput.value });
+    addStudent.addEventListener("click", add);
+    addInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        add();
+      }
+    });
+    addRow.append(addInput, addStudent);
+    card.append(heading, list, addRow);
+    groupEditorList.appendChild(card);
+  });
+}
+
+function openGroupEditor() {
+  if (!state || !Array.isArray(state.groups)) return;
+  editingGroups = state.groups.map(group => [...group]);
+  groupEditorError.textContent = "";
+  renderGroupEditor();
+  groupEditorModal.classList.remove("hidden");
+  groupEditorModal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("dialog-open");
+}
+
+editGroupsButton.addEventListener("click", openGroupEditor);
+closeGroupEditorButton.addEventListener("click", closeGroupEditor);
+cancelGroupEditorButton.addEventListener("click", closeGroupEditor);
+groupEditorModal.addEventListener("click", event => {
+  if (event.target === groupEditorModal) closeGroupEditor();
+});
+addGroupButton.addEventListener("click", () => runGroupEdit({ type: "addGroup" }));
+saveGroupEditorButton.addEventListener("click", async () => {
+  try {
+    const groups = GroupLogic.validateEditedGroups(editingGroups);
+    if (state.presentation) {
+      const confirmed = await AppDialog.confirm({
+        title: "Salvar os grupos editados?",
+        message: "As apresentações e notas já registradas serão reiniciadas, mas os novos grupos serão preservados.",
+        confirmText: "Salvar e reiniciar",
+        variant: "danger"
+      });
+      if (!confirmed) return;
+    }
+    state.groups = groups;
+    state.groupCount = groups.length;
+    state.studentCount = GroupLogic.totalAllocated(groups);
+    state.capacities = groups.map(group => group.length);
+    delete state.presentation;
+    saveState();
+    closeGroupEditor();
+    render();
+  } catch (error) {
+    groupEditorError.textContent = error.message;
+  }
+});
+
+resumeSessionButton.addEventListener("click", () => {
+  sessionFileInput.value = "";
+  sessionFileInput.click();
+});
+
+sessionFileInput.addEventListener("change", async () => {
+  const file = sessionFileInput.files && sessionFileInput.files[0];
+  if (!file) return;
+  try {
+    state = SessionFile.parse(await file.text());
+    saveState();
+    window.location.href = "apresentacoes.html";
+  } catch (error) {
+    await AppDialog.notify({ title: "Não foi possível retomar", message: error.message, variant: "danger" });
+  }
+});
 
 importGroupsButton.addEventListener("click", openGroupImporter);
 importGroupsCurrentButton.addEventListener("click", openGroupImporter);
