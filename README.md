@@ -66,24 +66,6 @@ Carlos Silva
 
 Arquivos HTML exportados pelo próprio sistema ou contendo grupos em listas também podem ser importados.
 
-## Publicar no GitHub Pages
-
-O projeto é estático e pode ser publicado sem configuração adicional:
-
-1. Crie um repositório no GitHub e envie todos os arquivos desta pasta.
-2. No repositório, abra **Settings > Pages**.
-3. Em **Build and deployment**, escolha **Deploy from a branch**.
-4. Selecione a branch `main`, a pasta `/ (root)` e clique em **Save**.
-
-O GitHub exibirá o endereço público assim que a publicação terminar.
-
-## Testes
-
-Os testes usam apenas Node.js e podem ser executados no PowerShell:
-
-```powershell
-Get-ChildItem tests -Filter *.test.js | ForEach-Object { node $_.FullName }
-```
 
 ## Estrutura principal
 
