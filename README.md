@@ -24,6 +24,9 @@ O projeto funciona inteiramente no navegador: não envia dados para servidores e
 É possível abrir o arquivo `index.html` diretamente. Para evitar limitações do navegador ao trabalhar com arquivos locais, recomenda-se usar um servidor HTTP simples:
 
 ```powershell
+Primeiro navegue até a página do sorteador pelo cmd, powershell ou terminal.
+
+Após isso execute o comando:
 python -m http.server 8000
 ```
 
